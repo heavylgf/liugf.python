@@ -1,0 +1,1 @@
+print("tool 包中 init文件被自动调用")
