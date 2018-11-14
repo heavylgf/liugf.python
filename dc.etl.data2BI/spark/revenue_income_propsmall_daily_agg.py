@@ -46,39 +46,38 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                     "as recom_game_relation, " \
                                     "if(t1.currencytype = 100, sum(t1.currencynum), 0) as cash_amount, " \
                                     "if(t1.currencytype = 3 , sum(t1.currencynum), 0) as silver_amount, " \
-                                    "t1.dt as dt " \
+                                    "max(t1.dt) as dt " \
                                     "from " \
-                                    "(select game," \
-                                    "gamecode," \
-                                    "date," \
+                                    "(select game, " \
+                                    "gamecode, " \
+                                    "date, " \
                                     "goodsid, " \
-                                    "currencytype," \
-                                    "pkgtype," \
-                                    "fromapp," \
-                                    "fromappcode," \
-                                    "ostype," \
-                                    "recomgame," \
-                                    "recomgamecode," \
+                                    "currencytype, " \
+                                    "pkgtype, " \
+                                    "fromapp, " \
+                                    "fromappcode, " \
+                                    "ostype, " \
+                                    "recomgame, " \
+                                    "recomgamecode, " \
                                     "currencynum, " \
-                                    "max(dt) as dt " \
+                                    "dt " \
                                     "FROM ods.gspropsmalldb_mobileprops " \
                                     "where dt >= '%s' and dt < '%s' and currencytype in(100, 3) " \
-                                    "group by game, gamecode, date, goodsid, currencytype, pkgtype, fromapp, " \
-                                    "fromappcode, ostype, recomgame, recomgamecode, currencynum " \
                                     ") t1 " \
                                     "inner join" \
                                     "(select goods_id, " \
-                                    "goods_name," \
-                                    "goods_type," \
+                                    "goods_name, " \
+                                    "goods_type, " \
                                     "goods_class " \
-                                    "from dwd.dim_goods_dict" \
+                                    "from dwd.dim_goods_dict " \
                                     ") t2 " \
-                                    "on t1.goodsid = t2.goods_id " \
+                                    "on t1.goodsid = t2.goods_id where goods_class = 2 " \
                                     "left join " \
-                                    "(select enum_key," \
-                                    "enum_value," \
+                                    "(select enum_key, " \
+                                    "enum_value, " \
                                     "enum_type " \
                                     "from dwd.dim_common_enum_dict " \
+                                    "where enum_type = 'pkgtype' " \
                                     ") t3 " \
                                     "on t1.pkgtype = t3.enum_key " \
                                     "group by t1.game, " \
@@ -93,9 +92,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                     "t1.ostype, " \
                                     "t1.recomgame, " \
                                     "t1.currencytype, " \
-                                    "t1.recomgamecode, " \
-                                    "recom_game_relation, " \
-                                    "t1.dt " \
+                                    "t1.recomgamecode " \
                                     % (start_date, end_date)
 
     logger.warn(gspropsmalldb_mobileprops_sql, 'gspropsmalldb_mobileprops_sql ')
@@ -129,8 +126,8 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                         "as recom_game_relation," \
                         "sum(t1.price) as cash_amount, " \
                         "'' as silver_amount, " \
-                        "t1.dt as dt " \
-                        "from" \
+                        "t1.dt " \
+                        "from " \
                         "(select game, " \
                         "gamecode, " \
                         "paydate, " \
@@ -143,11 +140,10 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                         "recomgamecode, " \
                         "prodver, " \
                         "price, " \
-                        "max(dt) as dt " \
+                        "paydate as dt " \
                         "FROM ods.gspaydb_basic " \
-                        "where dt='%s' and paydate >= '%s' and paydate < '%s' and prodver is null " \
-                        "group by game, gamecode, paydate, gamegoodsid, pkgtype, fromapp, " \
-                        "fromappcode, ostype, recomgame, recomgamecode, prodver, price "\
+                        "where dt='%s' and paydate >= '%s' and paydate < '%s' " \
+                        "and (prodver is null or prodver = '')  " \
                         ") t1 " \
                         "inner join " \
                         "(select goods_id, " \
@@ -162,6 +158,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                         "enum_value, " \
                         "enum_type " \
                         "from dwd.dim_common_enum_dict " \
+                        "where enum_type = 'pkgtype' " \
                         ") t3 " \
                         "on t1.pkgtype = t3.enum_key " \
                         "group by t1.game, " \
@@ -247,6 +244,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                       "from_app_code, " \
                       "os_type, " \
                       "recom_game_relation, " \
+                      "dt " \
                       % (start_date, end_date)
 
     agg_level_1_partition = partition(spark, logger)
@@ -330,10 +328,10 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
 if __name__ == "__main__":
     argv = arguments(sys.argv)
-    if argv["start_date"] is None or argv["start_date"] is None:
+    if argv["start_date"] is None or argv["end_date"] is None:
         logic()
     else:
-        logic(argv["start_date"], argv["start_date"])
+        logic(argv["start_date"], argv["end_date"])
 
 
 

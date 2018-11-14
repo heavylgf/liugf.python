@@ -42,7 +42,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                  "end " \
                                  "as recom_game_relation, " \
                                  "sum(t1.num) as giftcoupon_amount, " \
-                                 "t1.dt as dt " \
+                                 "max(t1.dt) as dt " \
                                  "from " \
                                  "(select game, " \
                                  "gamecode, " \
@@ -54,30 +54,28 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                  "recomgame, " \
                                  "recomgamecode, " \
                                  "num, " \
-                                 "max(dt) as dt  " \
+                                 "dt  " \
                                  "from ods.gsgiftcoupondb_acquiregc " \
                                  "where dt >= '%s' and dt < '%s' " \
-                                 "group by game, gamecode, date, pkgtype, fromapp, " \
-                                 "fromappcode, ostype, recomgame, recomgamecode, num " \
                                  ") t1 " \
                                  "left join " \
-                                 "(select enum_key," \
-                                 "enum_value," \
+                                 "(select enum_key, " \
+                                 "enum_value, " \
                                  "enum_type " \
-                                 "from dwd.dim_common_enum_dict" \
+                                 "from dwd.dim_common_enum_dict " \
+                                 "where enum_type = 'pkgtype' " \
                                  ") t2 " \
                                  "on t1.pkgtype = t2.enum_key " \
-                                 "group by t1.game," \
-                                 "t1.gamecode," \
-                                 "t1.date," \
-                                 "t1.pkgtype," \
-                                 "t2.enum_value," \
-                                 "t1.fromapp," \
-                                 "t1.fromappcode," \
-                                 "t1.ostype," \
-                                 "t1.recomgame," \
-                                 "t1.recomgamecode," \
-                                 "t1.dt" \
+                                 "group by t1.game, " \
+                                 "t1.gamecode, " \
+                                 "t1.date, " \
+                                 "t1.pkgtype, " \
+                                 "t2.enum_value, " \
+                                 "t1.fromapp, " \
+                                 "t1.fromappcode, " \
+                                 "t1.ostype, " \
+                                 "t1.recomgame, " \
+                                 "t1.recomgamecode " \
                                  % (start_date, end_date) \
                                  # % (20181107, 20181108)
 
@@ -246,9 +244,9 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
 if __name__ == "__main__":
     argv = arguments(sys.argv)
-    if argv["start_date"] is None or argv["start_date"] is None:
+    if argv["start_date"] is None or argv["end_date"] is None:
         logic()
     else:
-        logic(argv["start_date"], argv["start_date"])
+        logic(argv["start_date"], argv["end_date"])
 
 
