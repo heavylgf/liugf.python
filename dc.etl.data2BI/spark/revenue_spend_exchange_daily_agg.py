@@ -77,12 +77,10 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                  "t1.recomgame, " \
                                  "t1.recomgamecode " \
                                  % (start_date, end_date) \
-                                 # % (20181107, 20181108)
+        # % (20181107, 20181108)
 
-    logger.warn(gsgiftcoupon_acquiregc_sql, 'gsgiftcoupon_acquiregc_sql ')
+    logger.warn(gsgiftcoupon_acquiregc_sql, 'gsgiftcoupon_acquiregc_sql')
     gsgiftcoupon_acquiregc_df = spark.sql(gsgiftcoupon_acquiregc_sql)
-
-    # gsgiftcoupon_acquiregc_df.show()
 
     hive_partition = partition(spark, logger)
     hive_partition.dropPartition("bi.revenue_spend_exchange_daily_agg_level_2", "dt", start_date, end_date)
@@ -98,16 +96,16 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     #     .format("orc") \
     #     .insertInto("bi.revenue_spend_exchange_daily_agg_level_2")
 
-    main_recommendation_sql = "select recom_game_id as game_id," \
-                              "recom_game_code as game_code," \
-                              "date," \
-                              "package_type," \
-                              "package_type_name," \
-                              "from_app_id," \
-                              "from_app_code," \
-                              "os_type," \
-                              "game_id as recom_game_id," \
-                              "game_code as recom_game_code," \
+    main_recommendation_sql = "select recom_game_id as game_id, " \
+                              "recom_game_code as game_code, " \
+                              "date, " \
+                              "package_type, " \
+                              "package_type_name, " \
+                              "from_app_id, " \
+                              "from_app_code, " \
+                              "os_type, " \
+                              "game_id as recom_game_id, " \
+                              "game_code as recom_game_code, " \
                               "2 as recom_game_relation," \
                               "giftcoupon_amount, " \
                               "dt " \
@@ -117,7 +115,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                               % (start_date, end_date) \
         # % (20181107, 20181108)
 
-    logger.warn(main_recommendation_sql, 'main_recommendation_sql ')
+    logger.warn(main_recommendation_sql, 'main_recommendation_sql')
     main_recommendation_df = spark.sql(main_recommendation_sql)
 
     main_recommendation_df \
@@ -128,15 +126,15 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
         .saveAsTable("bi.revenue_spend_exchange_daily_agg_level_2")
 
     # insert to agg_level_1
-    agg_level_1_sql = "select game_id," \
-                      "game_code," \
-                      "date," \
-                      "package_type," \
-                      "package_type_name," \
-                      "from_app_id," \
-                      "from_app_code," \
-                      "os_type," \
-                      "recom_game_relation," \
+    agg_level_1_sql = "select game_id, " \
+                      "game_code, " \
+                      "date, " \
+                      "package_type, " \
+                      "package_type_name, " \
+                      "from_app_id, " \
+                      "from_app_code, " \
+                      "os_type, " \
+                      "recom_game_relation, " \
                       "sum(giftcoupon_amount) as giftcoupon_amount, " \
                       "dt " \
                       "from bi.revenue_spend_exchange_daily_agg_level_2 " \
@@ -153,13 +151,14 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                       "recom_game_relation, " \
                       "dt " \
                       % (start_date, end_date)
-                      # % (20181107, 20181108)
+    # % (20181107, 20181108)
 
     agg_level_1_partition = partition(spark, logger)
     agg_level_1_partition.dropPartition("bi.revenue_spend_exchange_daily_agg_level_1", "dt", start_date, end_date)
 
     logger.warn(agg_level_1_sql, 'agg_level_1_sql ')
     agg_level_1_df = spark.sql(agg_level_1_sql)
+
     agg_level_1_df \
         .write \
         .partitionBy("dt") \
@@ -169,10 +168,11 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
     # agg_level_1  into mongoDB
     insert_mongo_agg_level_1_sql = "SELECT game_id as gameId, " \
-                                   "game_code as gameCode, " \
+                                   "if(game_code is null or game_code = '', '', game_code) as gameCode, " \
                                    "date as date, " \
                                    "package_type as packageTypeId, " \
-                                   "package_type_name as packageTypeName, " \
+                                   "if(package_type_name is null or package_type_name = '', '', package_type_name) " \
+                                   "as packageTypeName, " \
                                    "from_app_id as fromAppId, " \
                                    "case " \
                                    "when from_app_code is null then ' ' " \
@@ -182,7 +182,8 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                    "as fromAppCode, " \
                                    "os_type as osType, " \
                                    "recom_game_relation as recommendRelation, " \
-                                   "giftcoupon_amount as count, " \
+                                   "if(giftcoupon_amount is null or giftcoupon_amount = '', 0, giftcoupon_amount) " \
+                                   "as count, " \
                                    "dt " \
                                    "FROM bi.revenue_spend_exchange_daily_agg_level_1 " \
                                    "where dt >= '%s' and dt < '%s'" \
@@ -206,10 +207,11 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
     # agg_level_2  into mongoDB
     insert_mongo_agg_level_2_sql = "SELECT game_id as gameId, " \
-                                   "game_code as gameCode, " \
+                                   "if(game_code is null or game_code = '', '', game_code) as gameCode, " \
                                    "date as date, " \
                                    "package_type as packageTypeId, " \
-                                   "package_type_name as packageTypeName, " \
+                                   "if(package_type_name is null or package_type_name = '', '', package_type_name) " \
+                                   "as packageTypeName, " \
                                    "from_app_id as fromAppId, " \
                                    "case " \
                                    "when from_app_code is null then ' ' " \
@@ -219,14 +221,16 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                    "as fromAppCode, " \
                                    "os_type as osType, " \
                                    "recom_game_id as relateGameId, " \
-                                   "recom_game_code as relateGameCode, " \
+                                   "if(recom_game_code is null or recom_game_code = '', '', recom_game_code) " \
+                                   "as relateGameCode, " \
                                    "recom_game_relation as recommendRelation, " \
-                                   "giftcoupon_amount as count, " \
+                                   "if(giftcoupon_amount is null or giftcoupon_amount = '', 0, giftcoupon_amount) " \
+                                   "as count, " \
                                    "dt " \
                                    "FROM bi.revenue_spend_exchange_daily_agg_level_2 " \
                                    "where dt >= '%s' and dt < '%s'" \
                                    % (start_date, end_date) \
-                                   # % (20181107, 20181108)
+        # % (20181107, 20181108)
 
     logger.warn(insert_mongo_agg_level_2_sql, 'insert_mongo_agg_level_2_sql ')
     insert_mongo_agg_level_2_df = spark.sql(insert_mongo_agg_level_2_sql)
@@ -242,11 +246,10 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     #     .option("collection", "revenue_spend_exchange_daily_agg_level_2") \
     #     .save()
 
+
 if __name__ == "__main__":
     argv = arguments(sys.argv)
     if argv["start_date"] is None or argv["end_date"] is None:
         logic()
     else:
         logic(argv["start_date"], argv["end_date"])
-
-

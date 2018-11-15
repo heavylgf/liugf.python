@@ -44,15 +44,16 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                     "when t1.recomgame is not null then 3 " \
                                     "end " \
                                     "as recom_game_relation, " \
-                                    "if(t1.currencytype = 100, sum(t1.currencynum), 0) as cash_amount, " \
-                                    "if(t1.currencytype = 3 , sum(t1.currencynum), 0) as silver_amount, " \
+                                    "sum(cash_amount) as cash_amount, " \
+                                    "sum(silver_amount) as silver_amount, " \
                                     "max(t1.dt) as dt " \
                                     "from " \
                                     "(select game, " \
                                     "gamecode, " \
                                     "date, " \
                                     "goodsid, " \
-                                    "currencytype, " \
+                                    "case when currencytype = 100 then currencynum else 0 end as cash_amount, " \
+                                    "case when currencytype = 3 then currencynum else 0 end as silver_amount, " \
                                     "pkgtype, " \
                                     "fromapp, " \
                                     "fromappcode, " \
@@ -64,14 +65,14 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                     "FROM ods.gspropsmalldb_mobileprops " \
                                     "where dt >= '%s' and dt < '%s' and currencytype in(100, 3) " \
                                     ") t1 " \
-                                    "inner join" \
+                                    "inner join " \
                                     "(select goods_id, " \
                                     "goods_name, " \
                                     "goods_type, " \
                                     "goods_class " \
-                                    "from dwd.dim_goods_dict " \
+                                    "from dwd.dim_goods_dict where goods_class = 2 " \
                                     ") t2 " \
-                                    "on t1.goodsid = t2.goods_id where goods_class = 2 " \
+                                    "on t1.goodsid = t2.goods_id " \
                                     "left join " \
                                     "(select enum_key, " \
                                     "enum_value, " \
@@ -91,16 +92,14 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                     "t1.fromappcode, " \
                                     "t1.ostype, " \
                                     "t1.recomgame, " \
-                                    "t1.currencytype, " \
                                     "t1.recomgamecode " \
                                     % (start_date, end_date)
 
     logger.warn(gspropsmalldb_mobileprops_sql, 'gspropsmalldb_mobileprops_sql ')
     gspropsmalldb_mobileprops_df = spark.sql(gspropsmalldb_mobileprops_sql)
 
-    gspropsmalldb_mobileprops_partition = partition(spark, logger)
-    gspropsmalldb_mobileprops_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_2", "dt", start_date,
-                                                      end_date)
+    drop_partition = partition(spark, logger)
+    drop_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_2", "dt", start_date, end_date)
     gspropsmalldb_mobileprops_df \
         .write.partitionBy("dt") \
         .format("orc") \
@@ -125,7 +124,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                         "end " \
                         "as recom_game_relation," \
                         "sum(t1.price) as cash_amount, " \
-                        "'' as silver_amount, " \
+                        "0 as silver_amount, " \
                         "t1.dt " \
                         "from " \
                         "(select game, " \
@@ -143,7 +142,7 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                         "paydate as dt " \
                         "FROM ods.gspaydb_basic " \
                         "where dt='%s' and paydate >= '%s' and paydate < '%s' " \
-                        "and (prodver is null or prodver = '')  " \
+                        "and (prodver is null or prodver = '') and  product = 6001 " \
                         ") t1 " \
                         "inner join " \
                         "(select goods_id, " \
@@ -247,9 +246,8 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                       "dt " \
                       % (start_date, end_date)
 
-    agg_level_1_partition = partition(spark, logger)
-    agg_level_1_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_1", "dt", start_date, end_date)
-    # agg_level_1_partition.dropPartition("bi.revenue_spend_exchange_daily_agg_level_1", "dt", '20181107', '20181108')
+    drop_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_1", "dt", start_date, end_date)
+    # drop_partition.dropPartition("bi.revenue_spend_exchange_daily_agg_level_1", "dt", '20181107', '20181108')
 
     logger.warn(agg_level_1_sql, 'agg_level_1_sql ')
     agg_level_1_df = spark.sql(agg_level_1_sql)
@@ -263,12 +261,13 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
     # insert into  agg_level_1 to mongoDB
     insert_mongo_agg_level_1_sql = "select game_id as gameId, " \
-                                   "game_code as gameCode, " \
+                                   "if(game_code is null or game_code = '', '', game_code) as gameCode, " \
                                    "date as date, " \
                                    "goods_id as propId, " \
                                    "goods_name as propName, " \
                                    "package_type as packageTypeId, " \
-                                   "package_type_name as packageTypeName, " \
+                                   "if(package_type_name is null or package_type_name = '', '', package_type_name) " \
+                                   "as packageTypeName, " \
                                    "from_app_id as fromAppId, " \
                                    "case " \
                                    "when from_app_code is null then ' ' " \
@@ -278,8 +277,8 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                    "as fromAppCode, " \
                                    "os_type as osType, " \
                                    "recom_game_relation as recommendRelation, " \
-                                   "cash_amount as money, " \
-                                   "silver_amount as silvers, " \
+                                   "if(cash_amount is null or cash_amount = '', 0, cash_amount) as money, " \
+                                   "if(silver_amount is null or silver_amount = '', 0, silver_amount) as silvers, " \
                                    "dt " \
                                    "from bi.revenue_income_propsmall_daily_agg_level_1 " \
                                    "where dt >= '%s' and dt < '%s' " \
@@ -295,12 +294,13 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
     # insert into agg_level_2 to mongoDB
     insert_mongo_agg_level_2_sql = "select game_id as gameId, " \
-                                   "game_code as gameCode, " \
+                                   "if(game_code is null or game_code = '', '', game_code) as gameCode, " \
                                    "date as date, " \
                                    "goods_id as propId, " \
                                    "goods_name as propName, " \
                                    "package_type as packageTypeId, " \
-                                   "package_type_name as packageTypeName, " \
+                                   "if(package_type_name is null or package_type_name = '', '', package_type_name) " \
+                                   "as packageTypeName, " \
                                    "from_app_id as fromAppId, " \
                                    "case " \
                                    "when from_app_code is null then ' ' " \
@@ -310,10 +310,11 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                    "as fromAppCode, " \
                                    "os_type as osType, " \
                                    "recom_game_id as relateGameId, " \
-                                   "recom_game_code as relateGameCode, " \
-                                   "recom_game_relation as recommendRelation, " \
-                                   "cash_amount as money, " \
-                                   "silver_amount as silvers, " \
+                                   "if(recom_game_code is null or recom_game_code = '', '', recom_game_code) " \
+                                   "as relateGameCode, " \
+                                   "recom_game_relation as  recommendRelation, " \
+                                   "if(cash_amount is null or cash_amount = '', 0, cash_amount) as money, " \
+                                   "if(silver_amount is null or silver_amount = '', 0, silver_amount) as silvers, " \
                                    "dt " \
                                    "from bi.revenue_income_propsmall_daily_agg_level_2 " \
                                    "where dt >= '%s' and dt < '%s' " \
@@ -326,13 +327,10 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     mongo.collectionAppend(insert_mongo_agg_level_2_df, "GameProfitDB",
                            "unique_prop_income.detail", start_date, end_date)
 
+
 if __name__ == "__main__":
     argv = arguments(sys.argv)
     if argv["start_date"] is None or argv["end_date"] is None:
         logic()
     else:
         logic(argv["start_date"], argv["end_date"])
-
-
-
-
