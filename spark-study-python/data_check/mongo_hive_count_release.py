@@ -1,3 +1,4 @@
+#coding:utf-8
 from pyspark.sql import SparkSession
 from pyspark.streaming.kafka import KafkaUtils,TopicAndPartition
 from pyspark.sql.functions import *
@@ -7,8 +8,9 @@ from pyspark.sql import SQLContext
 import json
 import time
 from datetime import datetime, date, timedelta
+from ctdc.log.dclog import DcLogger
 
-SOURCE_FILE_PATH = "/data/projects/server/ROOT/mongo_hive_count/url.properties"
+SOURCE_FILE_PATH = "/data/projects/server/ROOT/validation_data/url.properties"
 # SOURCE_FILE_PATH = "C:/Users/CTWLPC/Desktop/url.properties"
 
 if __name__ == '__main__':
@@ -37,19 +39,13 @@ if __name__ == '__main__':
     yesterday_end_time = (int(time.mktime(time.strptime(str(today), '%Y-%m-%d'))) - 1) * 1000
     yesterday_end_time = str(yesterday_end_time)
 
-    # print(yesterday_date)
-    # print(yesterday_start_time)
-    # print(yesterday_end_time)
-
     spark = SparkSession.builder \
         .master("local") \
         .appName("hive_count") \
         .config("spark.some.config.option", "some-value") \
         .enableHiveSupport() \
         .getOrCreate()
-
     spark.sparkContext.setLogLevel("WARN")
-
     Logger = spark._jvm.org.apache.log4j.Logger
     mylogger = Logger.getLogger(__name__)
 
@@ -67,7 +63,6 @@ if __name__ == '__main__':
 
         mongoDF.createOrReplaceTempView(hive_databasetable)
         sql = 'select * from ' + hive_databasetable + ' where _id >= ' + start_date + ' and _id <= ' + end_date
-        print("sql: " + sql)
         return sql
 
     def sparksession_sum(url, username, password, mongo_database, mongo_collection, hive_databasetable, start_date, end_date):
@@ -85,21 +80,18 @@ if __name__ == '__main__':
         mongoDF.createOrReplaceTempView(hive_databasetable)
 
         sql = 'select * from ' + hive_databasetable + ' where _id >= ' + start_date + ' and _id <= ' + end_date
-        print("sql: " + sql)
         return sql
 
     def tools(databasetablelabel):
         databasetable = databasetablelabel.split("|")[0]
         hive_databasetable = databasetable.lower()
         print("hive_databasetable:" + hive_databasetable)
-
         mongo_collection = databasetable
         print("mongo_collection:" + mongo_collection)
-        # hive_database = mongo_database.lower()
-        # hive_table = mongo_collection.lower()
         return hive_databasetable, mongo_collection
 
     with open(SOURCE_FILE_PATH, 'r') as f:
+        logger = DcLogger()
         for line in f:
             line = line[:-1]
             url = line.split(" ")[0]
@@ -107,16 +99,16 @@ if __name__ == '__main__':
             password = line.split(" ")[2]
 
             # line:192.168.1.199:60001/admin root sw3dsw2d GsLoginDB_logindetail|day,SilverLogDB_login|day,GsPlayTogetherDB_endroom|month
-            print("line:" + line)
+            # print("line:" + line)
             # url: 192.168.1.199:60001/admin
-            print("url:" + url)
+            # print("url:" + url)
             # root
-            print("username:" + username)
+            # print("username:" + username)
             # sw3dsw2d
-            print("password:" + password)
+            # print("password:" + password)
 
             MONGO_ADDR = "mongodb://" + url
-            print("MONGO_ADDR:" + MONGO_ADDR)
+            # print("MONGO_ADDR:" + MONGO_ADDR)
             databasetablelabels = line.split(" ")[3].split(",")
             for databasetablelabel in databasetablelabels:
                 # day  month
@@ -127,50 +119,47 @@ if __name__ == '__main__':
                 if label == 'day':
                     hivesql = 'select * from ods.' + hive_databasetable + ' where dt = ' + yesterday_str
                     # hivesql = 'select * from ods.' + hive_databasetable + ' where dt = 20180918'
-                    print("hivesql:" + hivesql)
+                    # print("hivesql:" + hivesql)
                     hiveDF = spark.sql(hivesql).count()
-                    print("hiveDF:" + str(hiveDF))
 
                     sql = sparksession(url, username, password, "MongoCountDB", mongo_collection,
                                        hive_databasetable, yesterday_str, yesterday_str)
 
                     mongoDF = spark.sql(sql)
                     collection_sum_value = mongoDF.agg({"count": "sum"}).collect()[0][0]
-                    print(type(collection_sum_value))
 
-                    print("collection_sum_value:" + str(collection_sum_value))
+                    result = abs((hiveDF - collection_sum_value) / collection_sum_value)
 
-                    result = hiveDF - collection_sum_value
+                    mylogger.warn("hiveDF：" + str(hiveDF))
+                    mylogger.warn("collection_sum_value：" + str(collection_sum_value))
                     print("result : " + str(result))
 
-                    mylogger.warn("hiveDF：" + hiveDF)
-                    mylogger.warn("collection_sum_value：" + collection_sum_value)
-
-                    # mylogger.error("some error trace")
-                    # mylogger.info("some info trace")
+                    if result >= 100:
+                        logger.error(mongo_collection + "：result " + result)
 
                 if label == 'month':
                     hivesql = 'select * from ods.' + hive_databasetable + ' where dt = ' + day_begin_month
-                    print("hivesql:" + hivesql)
+                    # print("hivesql:" + hivesql)
                     hiveDF = spark.sql(hivesql).count()
-                    print("hiveDF:" + str(hiveDF))
+                    # print("hiveDF:" + str(hiveDF))
 
                     sql = sparksession_sum(url, username, password, "MongoCountDB", mongo_collection,
                                        hive_databasetable, day_begin_date, yesterday_str)
 
                     mongoDF = spark.sql(sql)
                     collection_sum_value = mongoDF.agg({"count": "sum"}).collect()[0][0]
-                    print(type(collection_sum_value))
-
-                    print("collection_sum_value:" + str(collection_sum_value))
 
                     result = hiveDF - collection_sum_value
-                    print(hiveDF - collection_sum_value)
+
+                    mylogger.warn("hiveDF：" + str(hiveDF))
+                    mylogger.warn("collection_sum_value：" + str(collection_sum_value))
                     print("result : " + str(result))
 
-                    mylogger.warn("hiveDF：" + hiveDF)
-                    mylogger.warn("collection_sum_value：" + collection_sum_value)
+                    if result >= 100:
+                        logger.error(mongo_collection + "：result " + result)
 
     print("mongo hive count successful !!")
+
+
 
 
