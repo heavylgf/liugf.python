@@ -24,7 +24,6 @@ logger = logging(spark, "WARN")
 logger.warn(sparkSession.showConf(), 'config')
 logger.warn("liugf", "author")
 
-
 def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     # Queries are expressed in HiveQL  currencytype(3) & currencytype(100)
     gspropsmalldb_mobileprops_sql = "select t1.game as game_id, " \
@@ -61,14 +60,13 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                     "recomgame, " \
                                     "recomgamecode, " \
                                     "currencynum, " \
-                                    "dt " \
+                                    "date as dt " \
                                     "FROM ods.gspropsmalldb_mobileprops " \
                                     "where dt >= '%s' and dt < '%s' and currencytype in(100, 3) " \
                                     ") t1 " \
                                     "inner join " \
                                     "(select goods_id, " \
                                     "goods_name, " \
-                                    "goods_type, " \
                                     "goods_class " \
                                     "from dwd.dim_goods_dict where goods_class = 2 " \
                                     ") t2 " \
@@ -99,12 +97,12 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     gspropsmalldb_mobileprops_df = spark.sql(gspropsmalldb_mobileprops_sql)
 
     drop_partition = partition(spark, logger)
-    drop_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_2", "dt", start_date, end_date)
+    drop_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_2_1", "dt", start_date, end_date)
     gspropsmalldb_mobileprops_df \
         .write.partitionBy("dt") \
         .format("orc") \
         .mode("append") \
-        .saveAsTable("bi.revenue_income_propsmall_daily_agg_level_2")
+        .saveAsTable("bi.revenue_income_propsmall_daily_agg_level_2_1")
 
     gspaydb_basic_sql = "select t1.game as game_id, " \
                         "t1.gamecode as game_code, " \
@@ -147,7 +145,6 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                         "inner join " \
                         "(select goods_id, " \
                         "goods_name, " \
-                        "goods_type, " \
                         "goods_class " \
                         "from dwd.dim_goods_dict where goods_class = 2 " \
                         ") t2 " \
@@ -180,6 +177,42 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
 
     gspaydb_basic_df \
         .write.partitionBy("dt") \
+        .format("orc") \
+        .mode("append") \
+        .saveAsTable("bi.revenue_income_propsmall_daily_agg_level_2_1")
+
+    # insert to agg agg_level_2
+    agg_level_2_sql = "select game_id, " \
+                      "game_code, " \
+                      "date, " \
+                      "goods_id, " \
+                      "goods_name, " \
+                      "package_type, " \
+                      "package_type_name, " \
+                      "from_app_id, " \
+                      "from_app_code, " \
+                      "os_type, " \
+                      "recom_game_id, " \
+                      "recom_game_code, " \
+                      "recom_game_relation, " \
+                      "sum(cash_amount) as cash_amount, " \
+                      "sum(silver_amount) as silver_amount, " \
+                      "dt " \
+                      "from bi.revenue_income_propsmall_daily_agg_level_2_1 " \
+                      "where dt >= '%s' and dt < '%s' " \
+                      "group by game_id, game_code, date, goods_id, goods_name, package_type, " \
+                      "package_type_name, from_app_id, from_app_code, os_type, recom_game_id, " \
+                      "recom_game_code, recom_game_relation, dt " \
+                      % (start_date, end_date)
+
+    logger.warn(agg_level_2_sql, 'agg_level_2_sql ')
+    agg_level_2_df = spark.sql(agg_level_2_sql)
+
+    drop_partition.dropPartition("bi.revenue_income_propsmall_daily_agg_level_2", "dt", start_date, end_date)
+
+    agg_level_2_df \
+        .write \
+        .partitionBy("dt") \
         .format("orc") \
         .mode("append") \
         .saveAsTable("bi.revenue_income_propsmall_daily_agg_level_2")
