@@ -14,7 +14,7 @@ DEFAULT_START_DATE = str(datetime.datetime.strptime(time.strftime('%Y%m%d', time
 DEFAULT_END_DATE = time.strftime('%Y%m%d', time.localtime())
 
 # spark session
-sparkSession = sparkInitialize().setAppName("firstlogin_dcplaytogetheractive").onHive().onMongo()
+sparkSession = sparkInitialize().setAppName("firstlogin_dcplaytogetheractive_all").onHive().onMongo()
 
 spark = sparkSession.getOrCreate()
 
@@ -25,7 +25,7 @@ logger.warn(sparkSession.showConf(), 'config')
 logger.warn("liugf", "author")
 
 def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
-    # Queries are expressed in HiveQL  currencytype(3) & currencytype(100)
+
     gspropsmalldb_mobileprops_sql = "select t1.game as game_id, " \
                                     "t1.gamecode as game_code, " \
                                     "t1.date as date, " \

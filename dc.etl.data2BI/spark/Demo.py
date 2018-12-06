@@ -47,4 +47,4 @@ if __name__ == "__main__":
     if argv["start_date"] is None or argv["end_date"] is None:
         logic()
     else:
-        logic(argv["start_date"],argv["start_date"])
+        logic(argv["start_date"], argv["end_date"])

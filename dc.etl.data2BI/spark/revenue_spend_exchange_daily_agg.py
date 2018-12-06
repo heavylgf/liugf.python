@@ -14,7 +14,7 @@ DEFAULT_START_DATE = str(datetime.datetime.strptime(time.strftime('%Y%m%d', time
 DEFAULT_END_DATE = time.strftime('%Y%m%d', time.localtime())
 
 # spark session
-sparkSession = sparkInitialize().setAppName("GsGiftCouponAcquiregcTest").onHive().onMongo()
+sparkSession = sparkInitialize().setAppName("revenue_spend_exchange_daily_agg").onHive().onMongo()
 
 spark = sparkSession.getOrCreate()
 
@@ -170,24 +170,25 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     insert_mongo_agg_level_1_sql = "SELECT game_id as gameId, " \
                                    "if(game_code is null or game_code = '', '', game_code) as gameCode, " \
                                    "date as date, " \
-                                   "package_type as packageTypeId, " \
+                                   "if(package_type is null or package_type = '', -1, package_type) " \
+                                   "as packageTypeId, " \
                                    "if(package_type_name is null or package_type_name = '', '', package_type_name) " \
                                    "as packageTypeName, " \
-                                   "from_app_id as fromAppId, " \
+                                   "if(from_app_id is null or from_app_id = '', -1, from_app_id) as fromAppId, " \
                                    "case " \
                                    "when from_app_code is null then ' ' " \
                                    "when from_app_code = '' then ' ' " \
                                    "else from_app_code " \
                                    "end " \
                                    "as fromAppCode, " \
-                                   "os_type as osType, " \
+                                   "if(os_type is null or os_type = '', -1, os_type) as osType, " \
                                    "recom_game_relation as recommendRelation, " \
                                    "if(giftcoupon_amount is null or giftcoupon_amount = '', 0, giftcoupon_amount) " \
                                    "as count, " \
                                    "dt " \
                                    "FROM bi.revenue_spend_exchange_daily_agg_level_1 " \
                                    "where dt >= '%s' and dt < '%s'" \
-                                   % (start_date, end_date) \
+                                   % (start_date, end_date)
         # % (20181107, 20181108)
 
     logger.warn(insert_mongo_agg_level_1_sql, 'insert_mongo_agg_level_1_sql ')
@@ -209,20 +210,20 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     insert_mongo_agg_level_2_sql = "SELECT game_id as gameId, " \
                                    "if(game_code is null or game_code = '', '', game_code) as gameCode, " \
                                    "date as date, " \
-                                   "package_type as packageTypeId, " \
+                                   "if(package_type is null or package_type = '', -1, package_type) " \
+                                   "as packageTypeId, " \
                                    "if(package_type_name is null or package_type_name = '', '', package_type_name) " \
                                    "as packageTypeName, " \
-                                   "from_app_id as fromAppId, " \
+                                   "if(from_app_id is null or from_app_id = '', -1, from_app_id) as fromAppId, " \
                                    "case " \
                                    "when from_app_code is null then ' ' " \
                                    "when from_app_code = '' then ' ' " \
                                    "else from_app_code " \
                                    "end " \
                                    "as fromAppCode, " \
-                                   "os_type as osType, " \
+                                   "if(os_type is null or os_type = '', -1, os_type) as osType, " \
                                    "recom_game_id as relateGameId, " \
-                                   "if(recom_game_code is null or recom_game_code = '', '', recom_game_code) " \
-                                   "as relateGameCode, " \
+                                   "recom_game_code as relateGameCode, " \
                                    "recom_game_relation as recommendRelation, " \
                                    "if(giftcoupon_amount is null or giftcoupon_amount = '', 0, giftcoupon_amount) " \
                                    "as count, " \
@@ -246,10 +247,17 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
     #     .option("collection", "revenue_spend_exchange_daily_agg_level_2") \
     #     .save()
 
+# if __name__ == "__main__":
+#     argv = arguments(sys.argv)
+#     if argv["start_date"] is None or argv["end_date"] is None:
+#         logic()
+#     else:
+#         logic(argv["start_date"], argv["end_date"])
 
 if __name__ == "__main__":
     argv = arguments(sys.argv)
-    if argv["start_date"] is None or argv["end_date"] is None:
+    if argv["start_date"] is None or argv["end_date"] is None or argv["start_date"] == "" or argv["end_date"] == "":
         logic()
     else:
         logic(argv["start_date"], argv["end_date"])
+
