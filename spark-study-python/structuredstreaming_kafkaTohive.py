@@ -73,8 +73,8 @@ if __name__ == '__main__':
     query = df1 \
         .writeStream \
         .format("csv") \
-        .option("path","/user/hive/warehouse/tempdb.db/people/dt=20180927/") \
-        .option("checkpointLocation","/checkpoint_path") \
+        .option("path", "/user/hive/warehouse/tempdb.db/people/dt=20180927/") \
+        .option("checkpointLocation", "/checkpoint_path") \
         .outputMode("append") \
         .start()
         
