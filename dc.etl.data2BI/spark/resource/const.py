@@ -7,6 +7,7 @@
 '''
 
 CONFIG_PATH="configs/config.ini"
+LOGSTASH_CONFIG_NAME = "configs/logstash.ini"
 
 #远程接口配置section
 CONFIG_SECTION_URLS = "urls"

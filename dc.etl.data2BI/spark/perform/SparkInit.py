@@ -28,10 +28,10 @@ class sparkInitialize:
     def __init__(self):
         self.sparkSession = SparkSession \
                                 .builder \
-                                .master(config.getconfig(SECTION_SPARK, "master", "local[*]")) \
-                                .config("spark.jars", config.getconfig(SECTION_SPARK, "jarlog4j", "%s/jars/log4j-1.2.17.jar" % os.environ.get("SPARK_HOME")))
+                                # .master(config.getconfig(SECTION_SPARK,"master","local[*]")) \
+                                # .config("spark.jars",config.getconfig(SECTION_SPARK, "jarlog4j", "%s/jars/log4j-1.2.17.jar" % os.environ.get("SPARK_HOME")))
 
-    def setAppName(self, appname):
+    def setAppName(self,appname):
         self.sparkSession.appName(appname)
         return sparkInitialize()
 

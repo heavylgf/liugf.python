@@ -1,6 +1,7 @@
 #coding=utf-8
 
 from datetime import date, datetime, timedelta
+import time
 
 
 def dateIntervalIterator(start, end, delta):
@@ -11,9 +12,16 @@ def dateIntervalIterator(start, end, delta):
     :param delta: 累加天数
     :return: 时间区间中的每一天
     '''
+    if start == "" or end == "" or start is None or end is None:
+        # 默认开始时间
+        start_date = datetime.strptime(time.strftime('%Y%m%d', time.localtime()), '%Y%m%d') + timedelta(days=-1)
+        # 默认结束时间
+        end_date = datetime.strptime(time.strftime('%Y%m%d', time.localtime()), '%Y%m%d')
 
-    start_date = datetime.strptime(start, '%Y%m%d')
-    end_date = datetime.strptime(end, '%Y%m%d')
+    else:
+        start_date = datetime.strptime(start, '%Y%m%d')
+        end_date = datetime.strptime(end, '%Y%m%d')
+
     interval = timedelta(days=delta)
 
     curr = start_date

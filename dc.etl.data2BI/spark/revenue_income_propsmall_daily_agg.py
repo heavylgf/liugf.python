@@ -318,7 +318,6 @@ def logic(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE):
                                    "from bi.revenue_income_propsmall_daily_agg_level_1 " \
                                    "where dt >= '%s' and dt < '%s' " \
                                    % (start_date, end_date)
-        # % (20181108, 20181109)
 
     logger.warn(insert_mongo_agg_level_1_sql, 'insert_mongo_agg_level_1_sql ')
     insert_mongo_agg_level_1_df = spark.sql(insert_mongo_agg_level_1_sql)
@@ -376,3 +375,4 @@ if __name__ == "__main__":
         logic()
     else:
         logic(argv["start_date"], argv["end_date"])
+
