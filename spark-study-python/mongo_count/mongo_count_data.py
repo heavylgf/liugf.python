@@ -168,3 +168,20 @@ if __name__ == '__main__':
                     # print("mongo_collection_count:" + str(mongo_collection_count))
                     # count_database[databasetable].insert({"date": yesterday_str, "count": mongo_collection_count})
 
+select t1.channel,
+	   count(t2.uid)
+	from
+(select channel
+	from tempdb.channel_id
+	where dt = 20190114
+) t1
+left join
+(select uid,
+	    channel
+	from ods.gslogindb_logindetail
+	where dt >= '20180101' and dt <= '20181001'
+) t2
+on t1.channel = t2.channel
+group by t1.channel
+
+
