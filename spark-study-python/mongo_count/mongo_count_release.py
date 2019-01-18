@@ -65,6 +65,8 @@ try:
                         mongo_database, mongo_collection = tools(databasetable)
                         MONGO_ADDR = "mongodb://" + url
                         client = mongodb.MongoDB(MONGO_ADDR, username, password, adminauth=True)
+                        # database = client.usedb(mongo_database)
+                        # collection = database[mongo_collection]
 
                         if mongo_database == "SilverLogDB":
                             database = client.usedb(mongo_database)
@@ -80,6 +82,14 @@ try:
 
                             collection_count = collection_count_backboxlog + collection_count_gamelog + collection_count_safeboxlog
 
+                            count_database[databasetable].update({"_id": yesterday_str}, {"count": collection_count},
+                                                                 upsert=True)
+                            print(str(databasetable) + " : " + str(collection_count))
+                        else:
+                            database = client.usedb(mongo_database)
+                            collection = database[mongo_collection]
+                            collection_count = collection.count(
+                                {"updatets": {"$gte": yesterday_start_time, "$lte": yesterday_end_time}})
                             count_database[databasetable].update({"_id": yesterday_str}, {"count": collection_count},
                                                                  upsert=True)
                             print(str(databasetable) + " : " + str(collection_count))
